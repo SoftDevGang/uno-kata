@@ -2,7 +2,8 @@
   :description "a code kata"
   :url "https://github.com/luontola/uno-kata"
 
-  :dependencies [[medley "1.3.0"]
+  :dependencies [[com.attendify/schema-refined "0.3.0-alpha4"]
+                 [medley "1.3.0"]
                  [org.clojure/clojure "1.10.1"]
                  [prismatic/schema "1.1.12"]]
   :pedantic? :warn

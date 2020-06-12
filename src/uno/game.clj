@@ -31,4 +31,4 @@
     (let [game {:game/draw-pile (shuffle all-cards)}
           game (reduce #(deal-cards %1 %2 7) game players)
           game (initialize-discard-pile game)]
-      [(assoc game :event/type :game-started)])))
+      [(assoc game :event/type :game.event/game-was-started)])))
