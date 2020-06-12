@@ -24,7 +24,36 @@
   (let [[game discard-pile] (draw-cards game 1)]
     (assoc game :game/discard-pile discard-pile)))
 
-(defn handle-command [state command]
+
+;;;; Read model
+
+(defmulti projection (fn [_game event]
+                       (:event/type event)))
+
+(defmethod projection :default
+  [game _event]
+  game)
+
+(defmethod projection :game.event/game-was-started
+  [game event]
+  (assert (nil? game))
+  (select-keys event [:game/players :game/discard-pile :game/draw-pile]))
+
+
+;;;; Write model
+
+(defn- write-model [_command events]
+  (reduce projection nil events))
+
+
+;;;; Command handlers
+
+(defmulti ^:private command-handler (fn [command _game _injections]
+                                      (:command/type command)))
+
+(defmethod command-handler :game.command/start-game
+  [command game _injections]
+  (assert (nil? game))
   (let [players (:game/players command)]
     (when-not (<= 2 (count players) 10)
       (throw (IllegalArgumentException. (str "expected 2-10 players, but was " (count players)))))
@@ -32,3 +61,6 @@
           game (reduce #(deal-cards %1 %2 7) game players)
           game (initialize-discard-pile game)]
       [(assoc game :event/type :game.event/game-was-started)])))
+
+(defn handle-command [command events]
+  (command-handler command (write-model command events) {}))

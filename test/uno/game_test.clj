@@ -3,8 +3,14 @@
             [uno.game :as game]
             [uno.schema :as schema]))
 
-(defn handle-command [state command]
-  (->> (game/handle-command state (schema/validate-command command))
+(defn- apply-events [events]
+  (->> events
+       (map schema/validate-event)
+       (reduce game/projection nil)))
+
+(defn- handle-command [command events]
+  (->> (game/handle-command (schema/validate-command command)
+                            (apply-events events))
        (map schema/validate-event)))
 
 (deftest all-cards-test
@@ -18,25 +24,28 @@
                    :player6 :player7 :player8 :player9 :player10 :player11]]
       (is (thrown-with-msg?
            IllegalArgumentException #"^expected 2-10 players, but was 1$"
-           (handle-command nil {:command/type :game.command/start-game
-                                :game/players (take 1 players)})))
-      (is (handle-command nil {:command/type :game.command/start-game
-                               :game/players (take 2 players)}))
-      (is (handle-command nil {:command/type :game.command/start-game
-                               :game/players (take 10 players)}))
+           (handle-command {:command/type :game.command/start-game
+                            :game/players (take 1 players)}
+                           [])))
+      (is (not (empty? (handle-command {:command/type :game.command/start-game
+                                        :game/players (take 2 players)}
+                                       []))))
+      (is (not (empty? (handle-command {:command/type :game.command/start-game
+                                        :game/players (take 10 players)}
+                                       []))))
       (is (thrown-with-msg?
            IllegalArgumentException #"^expected 2-10 players, but was 11$"
-           (handle-command nil {:command/type :game.command/start-game
-                                :game/players (take 11 players)})))))
+           (handle-command {:command/type :game.command/start-game
+                            :game/players (take 11 players)}
+                           [])))))
 
-  (let [events (handle-command nil {:command/type :game.command/start-game
-                                    :game/players [:player1 :player2]})
-        [game-started] events
-        player1-hand (get-in game-started [:game/players :player1 :player/hand])
-        player2-hand (get-in game-started [:game/players :player2 :player/hand])
-        draw-pile (:game/draw-pile game-started)
-        discard-pile (:game/discard-pile game-started)]
-    (is (= 1 (count events)))
+  (let [game (apply-events (handle-command {:command/type :game.command/start-game
+                                            :game/players [:player1 :player2]}
+                                           []))
+        player1-hand (get-in game [:game/players :player1 :player/hand])
+        player2-hand (get-in game [:game/players :player2 :player/hand])
+        draw-pile (:game/draw-pile game)
+        discard-pile (:game/discard-pile game)]
 
     (testing "every player starts with 7 cards, face down"
       (is (= 7 (count player1-hand)))
