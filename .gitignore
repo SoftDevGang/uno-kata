@@ -1,0 +1,9 @@
+*.bak
+*.log
+*.tmp
+.DS_Store
+/.lein-*
+/.nrepl-port
+/node_modules/
+/pom.xml
+/target/
