@@ -30,13 +30,17 @@
         [game-started] events
         player1-hand (get-in game-started [:game/players :player1 :player/hand])
         player2-hand (get-in game-started [:game/players :player2 :player/hand])
-        draw-pile (:game/draw-pile game-started)]
+        draw-pile (:game/draw-pile game-started)
+        discard-pile (:game/discard-pile game-started)]
     (is (= 1 (count events)))
 
-    (testing "every player starts with 7 cards, dealt face down"
+    (testing "every player starts with 7 cards, face down"
       (is (= 7 (count player1-hand)))
       (is (= 7 (count player2-hand))))
 
-    (testing "the rest of the cards are placed in a draw pile face down"
+    (testing "one card is placed in the discard pile, face up"
+      (is (= 1 (count discard-pile))))
+
+    (testing "the rest of the cards are placed in a draw pile, face down"
       (is (= (frequencies game/all-cards)
-             (frequencies (concat player1-hand player2-hand draw-pile)))))))
+             (frequencies (concat player1-hand player2-hand discard-pile draw-pile)))))))
