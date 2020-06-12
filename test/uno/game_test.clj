@@ -13,6 +13,9 @@
                             (apply-events events))
        (map schema/validate-event)))
 
+;; Rules for the Uno game
+;; https://www.unorules.com/
+
 (deftest all-cards-test
   (is (= 108 (count game/all-cards)))
   (doseq [card game/all-cards]
