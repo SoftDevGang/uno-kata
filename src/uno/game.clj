@@ -37,7 +37,8 @@
 (defmethod projection :game.event/game-was-started
   [game event]
   (assert (nil? game))
-  (select-keys event [:game/players :game/discard-pile :game/draw-pile]))
+  (select-keys event [:game/players :game/discard-pile :game/draw-pile
+                      :game/current-player :game/next-players]))
 
 
 ;;;; Write model
@@ -60,7 +61,10 @@
     (let [game {:game/draw-pile (shuffle all-cards)}
           game (reduce #(deal-cards %1 %2 7) game players)
           game (initialize-discard-pile game)]
-      [(assoc game :event/type :game.event/game-was-started)])))
+      [(assoc game
+              :game/current-player (first players)
+              :game/next-players (rest players)
+              :event/type :game.event/game-was-started)])))
 
 (defn handle-command [command events]
   (command-handler command (write-model command events) {}))

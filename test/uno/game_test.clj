@@ -40,20 +40,26 @@
                            [])))))
 
   (let [game (apply-events (handle-command {:command/type :game.command/start-game
-                                            :game/players [:player1 :player2]}
+                                            :game/players [:player1 :player2 :player3]}
                                            []))
         player1-hand (get-in game [:game/players :player1 :player/hand])
         player2-hand (get-in game [:game/players :player2 :player/hand])
+        player3-hand (get-in game [:game/players :player3 :player/hand])
         draw-pile (:game/draw-pile game)
         discard-pile (:game/discard-pile game)]
 
     (testing "every player starts with 7 cards, face down"
       (is (= 7 (count player1-hand)))
-      (is (= 7 (count player2-hand))))
+      (is (= 7 (count player2-hand)))
+      (is (= 7 (count player3-hand))))
 
     (testing "one card is placed in the discard pile, face up"
       (is (= 1 (count discard-pile))))
 
     (testing "the rest of the cards are placed in a draw pile, face down"
       (is (= (frequencies game/all-cards)
-             (frequencies (concat player1-hand player2-hand discard-pile draw-pile)))))))
+             (frequencies (concat player1-hand player2-hand player3-hand discard-pile draw-pile)))))
+
+    (testing "first player and gameplay direction"
+      (is (= :player1 (:game/current-player game)))
+      (is (= [:player2 :player3] (:game/next-players game))))))

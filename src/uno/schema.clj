@@ -8,14 +8,17 @@
 
 (def validate-card (s/validator Card))
 
+(s/defschema PlayerId s/Keyword)
 
 ;;;; Events
 
 (s/defschema GameWasStarted
   {:event/type (s/eq :game.event/game-was-started)
-   :game/players {s/Keyword {:player/hand [Card]}}
+   :game/players {PlayerId {:player/hand [Card]}}
    :game/discard-pile [Card]
-   :game/draw-pile [Card]})
+   :game/draw-pile [Card]
+   :game/current-player PlayerId
+   :game/next-players [PlayerId]})
 
 (def event-schemas
   {:game.event/game-was-started GameWasStarted})
