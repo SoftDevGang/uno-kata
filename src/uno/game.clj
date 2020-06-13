@@ -57,14 +57,17 @@
 
 (defmethod projection :game.event/card-was-played
   [game event]
-  (let [card (select-keys event [:card/type :card/color])
-        players (concat (:game/next-players game)
-                        [(:game/current-player game)])]
+  (let [card (select-keys event [:card/type :card/color])]
     (-> game
         (update :game/discard-pile #(cons card %))
-        (assoc :game/current-player (first players))
-        (assoc :game/next-players (rest players))
         (update-in [:game/players (:event/player event) :player/hand] remove-card card))))
+
+(defmethod projection :game.event/player-turn-has-ended
+  [game event]
+  (let [players (:game/next-players event)]
+    (-> game
+        (assoc :game/current-player (first players))
+        (assoc :game/next-players (rest players)))))
 
 
 ;;;; Command handlers
@@ -109,7 +112,10 @@
     [{:event/type :game.event/card-was-played
       :event/player player
       :card/type (:card/type card)
-      :card/color (:card/color card)}]))
+      :card/color (:card/color card)}
+     {:event/type :game.event/player-turn-has-ended
+      :event/player player
+      :game/next-players (concat (:game/next-players game) [player])}]))
 
 (defn handle-command [command game]
   (command-handler command game {}))

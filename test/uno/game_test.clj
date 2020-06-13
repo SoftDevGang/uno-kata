@@ -78,10 +78,17 @@
                                    :card/color :red})
               expected (-> expected
                            (assoc-in [:game/players :player1 :player/hand] [red-2 red-3])
-                           (assoc :game/discard-pile [red-1 blue-1])
-                           (assoc :game/current-player :player2)
-                           (assoc :game/next-players [:player3 :player1]))]
-          (is (= expected (apply-events events))))))))
+                           (assoc :game/discard-pile [red-1 blue-1]))]
+          (is (= expected (apply-events events))))
+
+        (testing "> player turn has ended"
+          (let [events (conj events {:event/type :game.event/player-turn-has-ended
+                                     :event/player :player1
+                                     :game/next-players [:player2 :player3 :player1]})
+                expected (-> expected
+                             (assoc :game/current-player :player2)
+                             (assoc :game/next-players [:player3 :player1]))]
+            (is (= expected (apply-events events)))))))))
 
 
 ;;;; Commands
@@ -139,7 +146,10 @@
                           :game/discard-pile [red-2]
                           :game/draw-pile []
                           :game/current-player :player1
-                          :game/next-players [:player2]}]
+                          :game/next-players [:player2]}
+        player-turn-has-ended {:event/type :game.event/player-turn-has-ended
+                               :event/player :player1
+                               :game/next-players [:player2 :player1]}]
 
     (testing "players cannot play out of turn"
       (is (thrown-with-msg?
@@ -163,7 +173,8 @@
       (is (= [{:event/type :game.event/card-was-played
                :event/player :player1
                :card/type 1
-               :card/color :blue}]
+               :card/color :blue}
+              player-turn-has-ended]
              (handle-command {:command/type :game.command/play-card
                               :command/player :player1
                               :card/type 1
@@ -174,7 +185,8 @@
       (is (= [{:event/type :game.event/card-was-played
                :event/player :player1
                :card/type 1
-               :card/color :blue}]
+               :card/color :blue}
+              player-turn-has-ended]
              (handle-command {:command/type :game.command/play-card
                               :command/player :player1
                               :card/type 1
@@ -203,10 +215,7 @@
             game-after (apply-events [game-was-started card-was-played])]
         (is (= (-> game-before
                    (assoc-in [:game/players :player1 :player/hand] [red-2 red-3])
-                   (assoc :game/discard-pile [red-1 blue-1])
-                   ;; TODO: new atomic event for advancing to next player
-                   (assoc :game/current-player :player2)
-                   (assoc :game/next-players [:player1]))
+                   (assoc :game/discard-pile [red-1 blue-1]))
                game-after)))))
 
   ;; TODO

@@ -35,9 +35,15 @@
    :card/type CardType
    :card/color CardColor})
 
+(s/defschema PlayerTurnHasEnded
+  {:event/type (s/eq :game.event/player-turn-has-ended)
+   :event/player PlayerId
+   :game/next-players [PlayerId]})
+
 (def event-schemas
   {:game.event/card-was-played CardWasPlayed
-   :game.event/game-was-started GameWasStarted})
+   :game.event/game-was-started GameWasStarted
+   :game.event/player-turn-has-ended PlayerTurnHasEnded})
 
 (s/defschema Event
   (apply refined/dispatch-on :event/type (flatten (seq event-schemas))))
