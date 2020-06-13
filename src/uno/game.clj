@@ -12,10 +12,12 @@
        {:card/type type
         :card/color color})
      (for [type (flatten (repeat 4 wild-cards))]
-       {:card/type type
-        :card/color :wild}))))
+       {:card/type type}))))
 
 (def starting-hand-size 7)
+
+(defn wild-card? [card]
+  (contains? #{:wild :wild-draw-four} (:card/type card)))
 
 (defn- draw-cards [game n]
   (let [draw-pile (:game/draw-pile game)

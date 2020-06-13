@@ -1,17 +1,19 @@
 (ns uno.schema
   (:require [schema-refined.core :as refined]
-            [schema.core :as s]))
+            [schema.core :as s]
+            [uno.game :as game]))
 
 (s/defschema CardType
   (s/enum 0 1 2 3 4 5 6 7 8 9 :skip :reverse :draw-two :wild :wild-draw-four))
 
 (s/defschema CardColor
-  (s/enum :red :yellow :green :blue :wild)) ; TODO: remove wild as a color
+  (s/enum :red :yellow :green :blue))
 
 (s/defschema Card
-  ;; TODO: have wild cards without color
-  {:card/type CardType
-   :card/color CardColor})
+  (s/conditional
+   game/wild-card? {:card/type (s/enum :wild :wild-draw-four)}
+   :else {:card/type CardType
+          :card/color CardColor}))
 
 (def validate-card (s/validator Card))
 
