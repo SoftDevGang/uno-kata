@@ -6,6 +6,7 @@
                  [medley "1.3.0"]
                  [org.clojure/clojure "1.10.1"]
                  [prismatic/schema "1.1.12"]]
+  :managed-dependencies [[org.clojure/spec.alpha "0.2.187"]]
   :pedantic? :warn
   :min-lein-version "2.9.0"
 
@@ -25,7 +26,7 @@
   :aliases {"autotest" ["kaocha" "--watch"]
             "kaocha" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner"]}
 
-  :profiles {:dev {:dependencies [[lambdaisland/kaocha "1.0-612"]
+  :profiles {:dev {:dependencies [[lambdaisland/kaocha "1.0.632"]
                                   [org.clojure/test.check "1.0.0"]
                                   [prismatic/schema-generators "0.1.3"]]
                    :repl-options {:init-ns uno.game}}})
