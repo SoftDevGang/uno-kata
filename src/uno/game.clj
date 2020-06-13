@@ -51,7 +51,7 @@
 
 (defmethod projection :game.event/game-was-started
   [game event]
-  (assert (nil? game))
+  (assert (nil? game) {:game game})
   (select-keys event [:game/players :game/discard-pile :game/draw-pile
                       :game/current-player :game/next-players]))
 
@@ -61,6 +61,7 @@
         card (select-keys event [:card/type :card/color])]
     (-> game
         (update :game/discard-pile #(cons card %))
+        ;; TODO: wild cards have no color; must normalize before the card can be removed from hand
         (update-in [:game/players player :player/hand] remove-card card))))
 
 (defmethod projection :game.event/player-turn-has-ended

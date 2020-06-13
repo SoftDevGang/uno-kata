@@ -52,43 +52,51 @@
 
 ;;;; Read model
 
-(deftest projection-test
-  (testing "game was started"
-    (let [events [{:event/type :game.event/game-was-started
-                   :game/players {:player1 {:player/hand [red-1 red-2 red-3]}
-                                  :player2 {:player/hand [green-1 green-2 green-3]}
-                                  :player3 {:player/hand [yellow-1 yellow-2 yellow-3]}}
-                   :game/discard-pile [blue-1]
-                   :game/draw-pile [blue-2 blue-3]
-                   :game/current-player :player1
-                   :game/next-players [:player2 :player3]}]
-          expected {:game/players {:player1 {:player/hand [red-1 red-2 red-3]}
-                                   :player2 {:player/hand [green-1 green-2 green-3]}
-                                   :player3 {:player/hand [yellow-1 yellow-2 yellow-3]}}
-                    :game/discard-pile [blue-1]
-                    :game/draw-pile [blue-2 blue-3]
-                    :game/current-player :player1
-                    :game/next-players [:player2 :player3]}]
-      (is (= expected (apply-events events)))
+(deftest game-was-started-test
+  ;; TODO: separate events for dealing cards and initializing the draw pile; see rules for when the card turned up at the beginning of play is special
+  (let [game {:game/players {:player1 {:player/hand [red-1 red-2 red-3]}
+                             :player2 {:player/hand [green-1 green-2 green-3]}
+                             :player3 {:player/hand [yellow-1 yellow-2 yellow-3]}}
+              :game/discard-pile [blue-1]
+              :game/draw-pile [blue-2 blue-3]
+              :game/current-player :player1
+              :game/next-players [:player2 :player3]}
+        events [(assoc game :event/type :game.event/game-was-started)]]
+    (is (= game (apply-events events)))))
 
-      (testing "> card was played"
-        (let [events (conj events {:event/type :game.event/card-was-played
-                                   :event/player :player1
-                                   :card/type 1
-                                   :card/color :red})
-              expected (-> expected
-                           (assoc-in [:game/players :player1 :player/hand] [red-2 red-3])
-                           (assoc :game/discard-pile [red-1 blue-1]))]
-          (is (= expected (apply-events events))))
+(deftest card-was-played-test
+  (let [[game-was-started :as events] (handle-command {:command/type :game.command/start-game
+                                                       :game/players [:player1 :player2 :player3]}
+                                                      nil)
+        expected (apply-events events)]
 
-        (testing "> player turn has ended"
-          (let [events (conj events {:event/type :game.event/player-turn-has-ended
-                                     :event/player :player1
-                                     :game/next-players [:player2 :player3 :player1]})
-                expected (-> expected
-                             (assoc :game/current-player :player2)
-                             (assoc :game/next-players [:player3 :player1]))]
-            (is (= expected (apply-events events)))))))))
+    (testing "card is removed from the player's hand and added to the top of the discard pile"
+      (let [events [(-> game-was-started
+                        (assoc-in [:game/players :player1 :player/hand] [red-1 red-2 red-3])
+                        (assoc :game/discard-pile [blue-1]))
+                    {:event/type :game.event/card-was-played
+                     :event/player :player1
+                     :card/type 1
+                     :card/color :red}]
+            expected (-> expected
+                         (assoc-in [:game/players :player1 :player/hand] [red-2 red-3])
+                         (assoc :game/discard-pile [red-1 blue-1]))]
+        (is (= expected (apply-events events)))))))
+
+(deftest player-turn-has-ended-test
+  (let [events (handle-command {:command/type :game.command/start-game
+                                :game/players [:player1 :player2 :player3]}
+                               nil)
+        expected (apply-events events)]
+
+    (testing "player turn advances to the next player"
+      (let [events (concat events [{:event/type :game.event/player-turn-has-ended
+                                    :event/player :player1
+                                    :game/next-players [:player2 :player3 :player1]}])
+            expected (-> expected
+                         (assoc :game/current-player :player2)
+                         (assoc :game/next-players [:player3 :player1]))]
+        (is (= expected (apply-events events)))))))
 
 
 ;;;; Commands
@@ -200,23 +208,7 @@
                             :command/player :player1
                             :card/type 1
                             :card/color :blue}
-                           [(assoc game-was-started :game/discard-pile [red-2])]))))
-
-    ;; TODO: extract to card-was-played-test?
-    (testing "the card goes from the player's hand to the top of the discard pile"
-      (let [game-was-started (-> game-was-started
-                                 (assoc-in [:game/players :player1 :player/hand] [red-1 red-2 red-3])
-                                 (assoc :game/discard-pile [blue-1]))
-            card-was-played {:event/type :game.event/card-was-played
-                             :event/player :player1
-                             :card/type 1
-                             :card/color :red}
-            game-before (apply-events [game-was-started])
-            game-after (apply-events [game-was-started card-was-played])]
-        (is (= (-> game-before
-                   (assoc-in [:game/players :player1 :player/hand] [red-2 red-3])
-                   (assoc :game/discard-pile [red-1 blue-1]))
-               game-after)))))
+                           [(assoc game-was-started :game/discard-pile [red-2])])))))
 
   ;; TODO
   (testing "if there are no matches or player chooses not to play;"
