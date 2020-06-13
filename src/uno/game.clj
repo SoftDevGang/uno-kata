@@ -57,10 +57,11 @@
 
 (defmethod projection :game.event/card-was-played
   [game event]
-  (let [card (select-keys event [:card/type :card/color])]
+  (let [player (:event/player event)
+        card (select-keys event [:card/type :card/color])]
     (-> game
         (update :game/discard-pile #(cons card %))
-        (update-in [:game/players (:event/player event) :player/hand] remove-card card))))
+        (update-in [:game/players player :player/hand] remove-card card))))
 
 (defmethod projection :game.event/player-turn-has-ended
   [game event]
