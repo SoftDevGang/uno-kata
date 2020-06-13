@@ -5,8 +5,16 @@
 
 (def red-1 {:card/type 1, :card/color :red})
 (def red-2 {:card/type 2, :card/color :red})
+(def red-3 {:card/type 3, :card/color :red})
+(def green-1 {:card/type 1, :card/color :green})
+(def green-2 {:card/type 2, :card/color :green})
+(def green-3 {:card/type 3, :card/color :green})
+(def yellow-1 {:card/type 1, :card/color :yellow})
+(def yellow-2 {:card/type 2, :card/color :yellow})
+(def yellow-3 {:card/type 3, :card/color :yellow})
 (def blue-1 {:card/type 1, :card/color :blue})
 (def blue-2 {:card/type 2, :card/color :blue})
+(def blue-3 {:card/type 3, :card/color :blue})
 
 (defn- apply-events [events]
   (->> events
@@ -25,6 +33,58 @@
   (is (= 108 (count game/all-cards)))
   (doseq [card game/all-cards]
     (is (schema/validate-card card))))
+
+(deftest remove-card-test
+  (testing "removes from any position"
+    (is (= [:b :c] (game/remove-card [:a :b :c] :a)))
+    (is (= [:a :c] (game/remove-card [:a :b :c] :b)))
+    (is (= [:a :b] (game/remove-card [:a :b :c] :c))))
+
+  (testing "removes only one card"
+    (is (= [:a] (game/remove-card [:a :a] :a)))
+    (is (= [:a :a :b] (game/remove-card [:a :b :a :b] :b))
+        "removes the first match"))
+
+  (testing "fails if card is not in the deck"
+    (is (thrown-with-msg?
+         IllegalArgumentException #"^card not found: :b$"
+         (game/remove-card [:a] :b)))))
+
+;;;; Read model
+
+(deftest projection-test
+  (testing "game was started"
+    (let [events [{:event/type :game.event/game-was-started
+                   :game/players {:player1 {:player/hand [red-1 red-2 red-3]}
+                                  :player2 {:player/hand [green-1 green-2 green-3]}
+                                  :player3 {:player/hand [yellow-1 yellow-2 yellow-3]}}
+                   :game/discard-pile [blue-1]
+                   :game/draw-pile [blue-2 blue-3]
+                   :game/current-player :player1
+                   :game/next-players [:player2 :player3]}]
+          expected {:game/players {:player1 {:player/hand [red-1 red-2 red-3]}
+                                   :player2 {:player/hand [green-1 green-2 green-3]}
+                                   :player3 {:player/hand [yellow-1 yellow-2 yellow-3]}}
+                    :game/discard-pile [blue-1]
+                    :game/draw-pile [blue-2 blue-3]
+                    :game/current-player :player1
+                    :game/next-players [:player2 :player3]}]
+      (is (= expected (apply-events events)))
+
+      (testing "> card was played"
+        (let [events (conj events {:event/type :game.event/card-was-played
+                                   :event/player :player1
+                                   :card/type 1
+                                   :card/color :red})
+              expected (-> expected
+                           (assoc-in [:game/players :player1 :player/hand] [red-2 red-3])
+                           (assoc :game/discard-pile [red-1 blue-1])
+                           (assoc :game/current-player :player2)
+                           (assoc :game/next-players [:player3 :player1]))]
+          (is (= expected (apply-events events))))))))
+
+
+;;;; Commands
 
 (deftest start-game-test
   (testing "the game is for 2-10 players"

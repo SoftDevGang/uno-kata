@@ -19,6 +19,12 @@
 (defn wild-card? [card]
   (contains? #{:wild :wild-draw-four} (:card/type card)))
 
+(defn remove-card [deck card]
+  (cond
+    (empty? deck) (throw (IllegalArgumentException. (str "card not found: " (pr-str card))))
+    (= card (first deck)) (rest deck)
+    :else (cons (first deck) (remove-card (rest deck) card))))
+
 (defn- draw-cards [game n]
   (let [draw-pile (:game/draw-pile game)
         [drawn remaining] (split-at n draw-pile)
@@ -48,6 +54,17 @@
   (assert (nil? game))
   (select-keys event [:game/players :game/discard-pile :game/draw-pile
                       :game/current-player :game/next-players]))
+
+(defmethod projection :game.event/card-was-played
+  [game event]
+  (let [card (select-keys event [:card/type :card/color])
+        players (concat (:game/next-players game)
+                        [(:game/current-player game)])]
+    (-> game
+        (update :game/discard-pile #(cons card %))
+        (assoc :game/current-player (first players))
+        (assoc :game/next-players (rest players))
+        (update-in [:game/players (:event/player event) :player/hand] remove-card card))))
 
 
 ;;;; Command handlers
