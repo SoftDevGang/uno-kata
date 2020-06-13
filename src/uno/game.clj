@@ -1,14 +1,21 @@
 (ns uno.game)
 
 (def all-cards
-  (concat
-   (for [color [:red :yellow :green :blue]
-         type (flatten (cons 0 (repeat 2 [1 2 3 4 5 6 7 8 9 :skip :reverse :draw-two])))]
-     {:card/type type
-      :card/color color})
-   (for [type (flatten (repeat 4 [:wild :wild-draw-four]))]
-     {:card/type type
-      :card/color :wild})))
+  (let [color-cards-x1 [0]
+        color-cards-x2 [1 2 3 4 5 6 7 8 9 :skip :reverse :draw-two]
+        wild-cards [:wild :wild-draw-four]]
+    (concat
+     (for [color [:red :yellow :green :blue]
+           type (concat color-cards-x1
+                        color-cards-x2
+                        color-cards-x2)]
+       {:card/type type
+        :card/color color})
+     (for [type (flatten (repeat 4 wild-cards))]
+       {:card/type type
+        :card/color :wild}))))
+
+(def starting-hand-size 7)
 
 (defn- draw-cards [game n]
   (let [draw-pile (:game/draw-pile game)
@@ -41,12 +48,6 @@
                       :game/current-player :game/next-players]))
 
 
-;;;; Write model
-
-(defn- write-model [_command events]
-  (reduce projection nil events))
-
-
 ;;;; Command handlers
 
 (defmulti ^:private command-handler (fn [command _game _injections]
@@ -59,12 +60,37 @@
     (when-not (<= 2 (count players) 10)
       (throw (IllegalArgumentException. (str "expected 2-10 players, but was " (count players)))))
     (let [game {:game/draw-pile (shuffle all-cards)}
-          game (reduce #(deal-cards %1 %2 7) game players)
+          game (reduce #(deal-cards %1 %2 starting-hand-size) game players)
           game (initialize-discard-pile game)]
       [(assoc game
               :game/current-player (first players)
               :game/next-players (rest players)
               :event/type :game.event/game-was-started)])))
 
-(defn handle-command [command events]
-  (command-handler command (write-model command events) {}))
+(defmethod command-handler :game.command/play-card
+  [command game _injections]
+  (let [player (:command/player command)
+        hand (get-in game [:game/players player :player/hand])
+        card (select-keys command [:card/type :card/color])
+        top-card (first (:game/discard-pile game))]
+    (when-not (= (:game/current-player game)
+                 player)
+      (throw (IllegalArgumentException. (str "not current player; expected " (pr-str (:game/current-player game))
+                                             ", but was " (pr-str player)))))
+    (when-not (contains? (set hand) card)
+      (throw (IllegalArgumentException. (str "card not in hand; tried to play " (pr-str card)
+                                             ", but hand was " (pr-str hand)))))
+    (when-not (or (= (:card/type top-card)
+                     (:card/type card))
+                  (= (:card/color top-card)
+                     (:card/color card)))
+      (throw (IllegalArgumentException. (str "card " (pr-str card)
+                                             " does not match the card " (pr-str top-card)
+                                             " in discard pile"))))
+    [{:event/type :game.event/card-was-played
+      :event/player player
+      :card/type (:card/type card)
+      :card/color (:card/color card)}]))
+
+(defn handle-command [command game]
+  (command-handler command game {}))

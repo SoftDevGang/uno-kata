@@ -2,9 +2,16 @@
   (:require [schema-refined.core :as refined]
             [schema.core :as s]))
 
+(s/defschema CardType
+  (s/enum 0 1 2 3 4 5 6 7 8 9 :skip :reverse :draw-two :wild :wild-draw-four))
+
+(s/defschema CardColor
+  (s/enum :red :yellow :green :blue :wild)) ; TODO: remove wild as a color
+
 (s/defschema Card
-  {:card/type (s/enum 0 1 2 3 4 5 6 7 8 9 :skip :reverse :draw-two :wild :wild-draw-four)
-   :card/color (s/enum :red :yellow :green :blue :wild)})
+  ;; TODO: have wild cards without color
+  {:card/type CardType
+   :card/color CardColor})
 
 (def validate-card (s/validator Card))
 
@@ -20,8 +27,15 @@
    :game/current-player PlayerId
    :game/next-players [PlayerId]})
 
+(s/defschema CardWasPlayed
+  {:event/type (s/eq :game.event/card-was-played)
+   :event/player PlayerId
+   :card/type CardType
+   :card/color CardColor})
+
 (def event-schemas
-  {:game.event/game-was-started GameWasStarted})
+  {:game.event/card-was-played CardWasPlayed
+   :game.event/game-was-started GameWasStarted})
 
 (s/defschema Event
   (apply refined/dispatch-on :event/type (flatten (seq event-schemas))))
@@ -41,8 +55,15 @@
   {:command/type (s/eq :game.command/start-game)
    :game/players [s/Keyword]})
 
+(s/defschema PlayCard
+  {:command/type (s/eq :game.command/play-card)
+   :command/player PlayerId
+   :card/type CardType
+   :card/color CardColor})
+
 (def command-schemas
-  {:game.command/start-game StartGame})
+  {:game.command/play-card PlayCard
+   :game.command/start-game StartGame})
 
 (s/defschema Command
   (apply refined/dispatch-on :command/type (flatten (seq command-schemas))))
