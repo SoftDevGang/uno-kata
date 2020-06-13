@@ -133,13 +133,13 @@
       (is (= [:player2 :player3] (:game/next-players game))))))
 
 (deftest play-card-test
-  (let [game-started {:event/type :game.event/game-was-started
-                      :game/players {:player1 {:player/hand [blue-1]}
-                                     :player2 {:player/hand [blue-2]}}
-                      :game/discard-pile [red-2]
-                      :game/draw-pile []
-                      :game/current-player :player1
-                      :game/next-players [:player2]}]
+  (let [game-was-started {:event/type :game.event/game-was-started
+                          :game/players {:player1 {:player/hand [blue-1]}
+                                         :player2 {:player/hand [blue-2]}}
+                          :game/discard-pile [red-2]
+                          :game/draw-pile []
+                          :game/current-player :player1
+                          :game/next-players [:player2]}]
 
     (testing "players cannot play out of turn"
       (is (thrown-with-msg?
@@ -148,7 +148,7 @@
                             :command/player :player2
                             :card/type 2
                             :card/color :blue}
-                           [game-started]))))
+                           [game-was-started]))))
 
     (testing "players cannot play cards that are not in their hand"
       (is (thrown-with-msg?
@@ -157,7 +157,7 @@
                             :command/player :player1
                             :card/type 2
                             :card/color :blue}
-                           [game-started]))))
+                           [game-was-started]))))
 
     (testing "players can match the card in discard pile by number"
       (is (= [{:event/type :game.event/card-was-played
@@ -168,7 +168,7 @@
                               :command/player :player1
                               :card/type 1
                               :card/color :blue}
-                             [(assoc game-started :game/discard-pile [red-1])]))))
+                             [(assoc game-was-started :game/discard-pile [red-1])]))))
 
     (testing "players can match the card in discard pile by color"
       (is (= [{:event/type :game.event/card-was-played
@@ -179,7 +179,7 @@
                               :command/player :player1
                               :card/type 1
                               :card/color :blue}
-                             [(assoc game-started :game/discard-pile [blue-2])]))))
+                             [(assoc game-was-started :game/discard-pile [blue-2])]))))
 
     (testing "cards with different number and color will not match"
       (is (thrown-with-msg?
@@ -188,7 +188,26 @@
                             :command/player :player1
                             :card/type 1
                             :card/color :blue}
-                           [(assoc game-started :game/discard-pile [red-2])])))))
+                           [(assoc game-was-started :game/discard-pile [red-2])]))))
+
+    ;; TODO: extract to card-was-played-test?
+    (testing "the card goes from the player's hand to the top of the discard pile"
+      (let [game-was-started (-> game-was-started
+                                 (assoc-in [:game/players :player1 :player/hand] [red-1 red-2 red-3])
+                                 (assoc :game/discard-pile [blue-1]))
+            card-was-played {:event/type :game.event/card-was-played
+                             :event/player :player1
+                             :card/type 1
+                             :card/color :red}
+            game-before (apply-events [game-was-started])
+            game-after (apply-events [game-was-started card-was-played])]
+        (is (= (-> game-before
+                   (assoc-in [:game/players :player1 :player/hand] [red-2 red-3])
+                   (assoc :game/discard-pile [red-1 blue-1])
+                   ;; TODO: new atomic event for advancing to next player
+                   (assoc :game/current-player :player2)
+                   (assoc :game/next-players [:player1]))
+               game-after)))))
 
   ;; TODO
   (testing "if there are no matches or player chooses not to play;"
