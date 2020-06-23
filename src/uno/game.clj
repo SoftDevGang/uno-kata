@@ -78,10 +78,11 @@
 (defmethod projection :game.event/card-was-played
   [game event]
   (let [player (:event/player event)
-        card (select-keys event [:card/type :card/color])] ; TODO: introduce :event/card
+        card (:event/card event)
+        color (:card/color event)]
     (-> game
-        (update-in [:game/players player :player/hand] remove-card (normalize-wild-card card))
-        (update :game/discard-pile #(cons card %)))))
+        (update-in [:game/players player :player/hand] remove-card card)
+        (update :game/discard-pile #(cons (assoc card :card/color color) %))))) ; TODO: separate the current color from the discard pile
 
 (defmethod projection :game.event/card-was-not-played
   [game _event]
@@ -90,7 +91,7 @@
 (defmethod projection :game.event/card-was-drawn
   [game event]
   (let [player (:event/player event)
-        card (select-keys event [:card/type :card/color])] ; TODO: introduce :event/card
+        card (:event/card event)]
     (-> game
         (update :game/draw-pile remove-card card)
         (update-in [:game/players player :player/hand] #(cons card %))
@@ -129,7 +130,8 @@
   [command game _injections]
   (let [player (:command/player command)
         hand (get-in game [:game/players player :player/hand])
-        card (select-keys command [:card/type :card/color]) ; TODO: introduce :event/card
+        card (:command/card command)
+        color (:card/color command)
         top-card (first (:game/discard-pile game))
         last-drawn-card (:game/last-drawn-card game)]
     (check-is-current-player player game)
@@ -146,7 +148,8 @@
                                       ", but just drew " (pr-str last-drawn-card)))))
     [(merge {:event/type :game.event/card-was-played
              :event/player player
-             :event/card (normalize-wild-card card)}
+             :event/card (normalize-wild-card card)
+             :card/color color}
             card)
      {:event/type :game.event/player-turn-has-ended
       :event/player player
