@@ -79,8 +79,7 @@
                     {:event/type :game.event/card-was-played
                      :event/player :player1
                      :event/card red-1
-                     :card/type 1
-                     :card/color :red}]
+                     :card/effective-color :red}]
             expected (-> expected
                          (assoc-in [:game/players :player1 :player/hand] [red-2 red-3])
                          (assoc :game/discard-pile [red-1 blue-1]))]
@@ -93,8 +92,7 @@
                     {:event/type :game.event/card-was-played
                      :event/player :player1
                      :event/card wild
-                     :card/type :wild
-                     :card/color :yellow}]
+                     :card/effective-color :yellow}]
             expected (-> expected
                          (assoc-in [:game/players :player1 :player/hand] [red-1])
                          (assoc :game/discard-pile [(assoc wild :card/color :yellow) ; TODO: separate the current color from the discard pile
@@ -127,9 +125,7 @@
                         (assoc :game/draw-pile [blue-1 blue-2 blue-3]))
                     {:event/type :game.event/card-was-drawn
                      :event/player :player1
-                     :event/card blue-1
-                     :card/type 1
-                     :card/color :blue}]
+                     :event/card blue-1}]
             expected (-> expected
                          (assoc-in [:game/players :player1 :player/hand] [blue-1 red-1 red-2 red-3])
                          (assoc :game/draw-pile [blue-2 blue-3])
@@ -218,8 +214,7 @@
            (handle-command {:command/type :game.command/play-card
                             :command/player :player2
                             :command/card blue-2
-                            :card/type 2
-                            :card/color :blue}
+                            :card/effective-color :blue}
                            [game-was-started]))))
 
     (testing "players cannot play cards that are not in their hand"
@@ -228,36 +223,31 @@
            (handle-command {:command/type :game.command/play-card
                             :command/player :player1
                             :command/card blue-2
-                            :card/type 2
-                            :card/color :blue}
+                            :card/effective-color :blue}
                            [game-was-started]))))
 
     (testing "players can match the card in discard pile by number"
       (is (= [{:event/type :game.event/card-was-played
                :event/player :player1
                :event/card blue-1
-               :card/type 1
-               :card/color :blue}
+               :card/effective-color :blue}
               player-turn-has-ended]
              (handle-command {:command/type :game.command/play-card
                               :command/player :player1
                               :command/card blue-1
-                              :card/type 1
-                              :card/color :blue}
+                              :card/effective-color :blue}
                              [(assoc game-was-started :game/discard-pile [red-1])]))))
 
     (testing "players can match the card in discard pile by color"
       (is (= [{:event/type :game.event/card-was-played
                :event/player :player1
                :event/card blue-1
-               :card/type 1
-               :card/color :blue}
+               :card/effective-color :blue}
               player-turn-has-ended]
              (handle-command {:command/type :game.command/play-card
                               :command/player :player1
                               :command/card blue-1
-                              :card/type 1
-                              :card/color :blue}
+                              :card/effective-color :blue}
                              [(assoc game-was-started :game/discard-pile [blue-2])]))))
 
     (testing "cards with different number and color will not match"
@@ -266,22 +256,19 @@
            (handle-command {:command/type :game.command/play-card
                             :command/player :player1
                             :command/card blue-1
-                            :card/type 1
-                            :card/color :blue}
+                            :card/effective-color :blue}
                            [(assoc game-was-started :game/discard-pile [red-2])]))))
 
     (testing "players can match any color with a wild card"
       (is (= [{:event/type :game.event/card-was-played
                :event/player :player1
                :event/card wild
-               :card/type :wild
-               :card/color :yellow}
+               :card/effective-color :yellow}
               player-turn-has-ended]
              (handle-command {:command/type :game.command/play-card
                               :command/player :player1
                               :command/card wild
-                              :card/type :wild
-                              :card/color :yellow}
+                              :card/effective-color :yellow}
                              [(assoc game-was-started :game/discard-pile [blue-2])]))))))
 
 (deftest do-not-play-card-test
@@ -308,9 +295,7 @@
                :event/player :player1}
               {:event/type :game.event/card-was-drawn
                :event/player :player1
-               :event/card blue-2
-               :card/type 2
-               :card/color :blue}]
+               :event/card blue-2}]
              (handle-command {:command/type :game.command/do-not-play-card
                               :command/player :player1}
                              [(assoc game-was-started :game/draw-pile [blue-2])]))))
@@ -321,22 +306,18 @@
                      :event/player :player1}
                     {:event/type :game.event/card-was-drawn
                      :event/player :player1
-                     :event/card blue-2
-                     :card/type 2
-                     :card/color :blue}]]
+                     :event/card blue-2}]]
 
         (testing "player can play it immediately"
           (is (= [{:event/type :game.event/card-was-played
                    :event/player :player1
                    :event/card blue-2
-                   :card/type 2
-                   :card/color :blue}
+                   :card/effective-color :blue}
                   player-turn-has-ended]
                  (handle-command {:command/type :game.command/play-card
                                   :command/player :player1
                                   :command/card blue-2
-                                  :card/type 2
-                                  :card/color :blue}
+                                  :card/effective-color :blue}
                                  events))))
 
         (testing "player cannot play other cards"
@@ -345,8 +326,7 @@
                (handle-command {:command/type :game.command/play-card
                                 :command/player :player1
                                 :command/card red-3
-                                :card/type 3
-                                :card/color :red}
+                                :card/effective-color :red}
                                events))))
 
         (testing "player cannot avoid playing it"
@@ -362,9 +342,7 @@
                      :event/player :player1}
                     {:event/type :game.event/card-was-drawn
                      :event/player :player1
-                     :event/card blue-3
-                     :card/type 3
-                     :card/color :blue}]]
+                     :event/card blue-3}]]
         (is (= [{:event/type :game.event/card-was-not-played
                  :event/player :player1}
                 player-turn-has-ended]

@@ -33,8 +33,8 @@
   {:event/type (s/eq :game.event/card-was-played)
    :event/player PlayerId
    :event/card Card
-   :card/type CardType
-   :card/color CardColor})
+   ;; TODO: optional
+   :card/effective-color CardColor})
 
 (s/defschema CardWasNotPlayed
   {:event/type (s/eq :game.event/card-was-not-played)
@@ -43,9 +43,7 @@
 (s/defschema CardWasDrawn
   {:event/type (s/eq :game.event/card-was-drawn)
    :event/player PlayerId
-   :event/card Card
-   :card/type CardType
-   :card/color CardColor})
+   :event/card Card})
 
 (s/defschema PlayerTurnHasEnded
   {:event/type (s/eq :game.event/player-turn-has-ended)
@@ -81,8 +79,8 @@
   {:command/type (s/eq :game.command/play-card)
    :command/player PlayerId
    :command/card Card
-   :card/type CardType
-   :card/color CardColor})
+   ;; TODO: optional
+   :card/effective-color CardColor})
 
 (s/defschema DoNotPlayCard
   {:command/type (s/eq :game.command/do-not-play-card)

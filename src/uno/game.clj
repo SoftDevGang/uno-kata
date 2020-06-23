@@ -79,10 +79,10 @@
   [game event]
   (let [player (:event/player event)
         card (:event/card event)
-        color (:card/color event)]
+        color (:card/effective-color event)]
     (-> game
         (update-in [:game/players player :player/hand] remove-card card)
-        (update :game/discard-pile #(cons (assoc card :card/color color) %))))) ; TODO: separate the current color from the discard pile
+        (update :game/discard-pile #(cons (assoc card :card/color color) %))))) ; TODO next: separate the current color from the discard pile
 
 (defmethod projection :game.event/card-was-not-played
   [game _event]
@@ -131,7 +131,7 @@
   (let [player (:command/player command)
         hand (get-in game [:game/players player :player/hand])
         card (:command/card command)
-        color (:card/color command)
+        color (:card/effective-color command)
         top-card (first (:game/discard-pile game))
         last-drawn-card (:game/last-drawn-card game)]
     (check-is-current-player player game)
@@ -146,11 +146,10 @@
                (not= last-drawn-card card))
       (throw (GameRulesViolated. (str "can only play the card that was just drawn; tried to play " (pr-str card)
                                       ", but just drew " (pr-str last-drawn-card)))))
-    [(merge {:event/type :game.event/card-was-played
-             :event/player player
-             :event/card (normalize-wild-card card)
-             :card/color color}
-            card)
+    [{:event/type :game.event/card-was-played
+      :event/player player
+      :event/card (normalize-wild-card card)
+      :card/effective-color color}
      {:event/type :game.event/player-turn-has-ended
       :event/player player
       :game/next-players (concat (:game/next-players game) [player])}]))
@@ -166,10 +165,9 @@
       (let [card (first (:game/draw-pile game))]
         [{:event/type :game.event/card-was-not-played
           :event/player player}
-         (merge {:event/type :game.event/card-was-drawn
-                 :event/player player
-                 :event/card card}
-                card)])
+         {:event/type :game.event/card-was-drawn
+          :event/player player
+          :event/card card}])
 
       ;; cannot pass a second time if the drawn card can be played
       (card-can-be-played? (:game/last-drawn-card game) game)
