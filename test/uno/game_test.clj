@@ -1,7 +1,8 @@
 (ns uno.game-test
   (:require [clojure.test :refer :all]
             [uno.game :as game]
-            [uno.schema :as schema]))
+            [uno.schema :as schema])
+  (:import (uno GameRulesViolated)))
 
 (def red-1 {:card/type 1, :card/color :red})
 (def red-2 {:card/type 2, :card/color :red})
@@ -155,7 +156,7 @@
     (let [players [:player1 :player2 :player3 :player4 :player5
                    :player6 :player7 :player8 :player9 :player10 :player11]]
       (is (thrown-with-msg?
-           IllegalArgumentException #"^expected 2-10 players, but was 1$"
+           GameRulesViolated #"^expected 2-10 players, but was 1$"
            (handle-command {:command/type :game.command/start-game
                             :game/players (take 1 players)}
                            [])))
@@ -166,7 +167,7 @@
                                         :game/players (take 10 players)}
                                        []))))
       (is (thrown-with-msg?
-           IllegalArgumentException #"^expected 2-10 players, but was 11$"
+           GameRulesViolated #"^expected 2-10 players, but was 11$"
            (handle-command {:command/type :game.command/start-game
                             :game/players (take 11 players)}
                            [])))))
@@ -210,7 +211,7 @@
 
     (testing "players cannot play out of turn"
       (is (thrown-with-msg?
-           IllegalArgumentException #"^not current player; expected :player1, but was :player2$"
+           GameRulesViolated #"^not current player; expected :player1, but was :player2$"
            (handle-command {:command/type :game.command/play-card
                             :command/player :player2
                             :card/type 2
@@ -219,7 +220,7 @@
 
     (testing "players cannot play cards that are not in their hand"
       (is (thrown-with-msg?
-           IllegalArgumentException #"^card not in hand; tried to play .*:card/type 2.*, but hand was .*:card/type 1.*$"
+           GameRulesViolated #"^card not in hand; tried to play .*:card/type 2.*, but hand was .*:card/type 1.*$"
            (handle-command {:command/type :game.command/play-card
                             :command/player :player1
                             :card/type 2
@@ -252,7 +253,7 @@
 
     (testing "cards with different number and color will not match"
       (is (thrown-with-msg?
-           IllegalArgumentException #"^card \{.*blue.*} does not match the card \{.*red.*} in discard pile$"
+           GameRulesViolated #"^card \{.*blue.*} does not match the card \{.*red.*} in discard pile$"
            (handle-command {:command/type :game.command/play-card
                             :command/player :player1
                             :card/type 1
@@ -285,7 +286,7 @@
 
     (testing "players cannot not play out of turn"
       (is (thrown-with-msg?
-           IllegalArgumentException #"^not current player; expected :player1, but was :player2$"
+           GameRulesViolated #"^not current player; expected :player1, but was :player2$"
            (handle-command {:command/type :game.command/do-not-play-card
                             :command/player :player2}
                            [game-was-started]))))
@@ -324,7 +325,7 @@
 
         (testing "player cannot play other cards"
           (is (thrown-with-msg?
-               IllegalArgumentException #"^can only play the card that was just drawn; tried to play .*:card/type 3.*, but just drew .*:card/type 2.*$"
+               GameRulesViolated #"^can only play the card that was just drawn; tried to play .*:card/type 3.*, but just drew .*:card/type 2.*$"
                (handle-command {:command/type :game.command/play-card
                                 :command/player :player1
                                 :card/type 3
@@ -333,7 +334,7 @@
 
         (testing "player cannot avoid playing it"
           (is (thrown-with-msg?
-               IllegalArgumentException #"^the card that was just drawn can be played, so it must be played$"
+               GameRulesViolated #"^the card that was just drawn can be played, so it must be played$"
                (handle-command {:command/type :game.command/do-not-play-card
                                 :command/player :player1}
                                events))))))

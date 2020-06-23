@@ -1,4 +1,5 @@
-(ns uno.game)
+(ns uno.game
+  (:import (uno GameRulesViolated)))
 
 (def all-cards
   (let [color-cards-x1 [0]
@@ -48,8 +49,8 @@
 (defn- check-is-current-player [player game]
   (let [current-player (:game/current-player game)]
     (when-not (= current-player player)
-      (throw (IllegalArgumentException. (str "not current player; expected " (pr-str current-player)
-                                             ", but was " (pr-str player)))))))
+      (throw (GameRulesViolated. (str "not current player; expected " (pr-str current-player)
+                                      ", but was " (pr-str player)))))))
 
 (defn- card-matches? [card previous-card]
   (or (= (:card/type previous-card)
@@ -115,8 +116,7 @@
   (assert (nil? game))
   (let [players (:game/players command)]
     (when-not (<= 2 (count players) 10)
-      ;; TODO: custom exception type, GameRulesViolated
-      (throw (IllegalArgumentException. (str "expected 2-10 players, but was " (count players)))))
+      (throw (GameRulesViolated. (str "expected 2-10 players, but was " (count players)))))
     (let [game {:game/draw-pile (shuffle all-cards)}
           game (reduce #(deal-cards %1 %2 starting-hand-size) game players)
           game (initialize-discard-pile game)]
@@ -134,16 +134,16 @@
         last-drawn-card (:game/last-drawn-card game)]
     (check-is-current-player player game)
     (when-not (contains? (set hand) (normalize-wild-card card))
-      (throw (IllegalArgumentException. (str "card not in hand; tried to play " (pr-str card)
-                                             ", but hand was " (pr-str hand)))))
+      (throw (GameRulesViolated. (str "card not in hand; tried to play " (pr-str card)
+                                      ", but hand was " (pr-str hand)))))
     (when-not (card-matches? card top-card)
-      (throw (IllegalArgumentException. (str "card " (pr-str card)
-                                             " does not match the card " (pr-str top-card)
-                                             " in discard pile"))))
+      (throw (GameRulesViolated. (str "card " (pr-str card)
+                                      " does not match the card " (pr-str top-card)
+                                      " in discard pile"))))
     (when (and (:game/draw-penalty-card? game)
                (not= last-drawn-card card))
-      (throw (IllegalArgumentException. (str "can only play the card that was just drawn; tried to play " (pr-str card)
-                                             ", but just drew " (pr-str last-drawn-card)))))
+      (throw (GameRulesViolated. (str "can only play the card that was just drawn; tried to play " (pr-str card)
+                                      ", but just drew " (pr-str last-drawn-card)))))
     [(merge {:event/type :game.event/card-was-played
              :event/player player}
             card)
@@ -168,7 +168,7 @@
 
       ;; cannot pass a second time if the drawn card can be played
       (card-can-be-played? (:game/last-drawn-card game) game)
-      (throw (IllegalArgumentException. "the card that was just drawn can be played, so it must be played"))
+      (throw (GameRulesViolated. "the card that was just drawn can be played, so it must be played"))
 
       ;; passing a second time
       :else
