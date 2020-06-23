@@ -15,6 +15,7 @@
 (def blue-1 {:card/type 1, :card/color :blue})
 (def blue-2 {:card/type 2, :card/color :blue})
 (def blue-3 {:card/type 3, :card/color :blue})
+(def wild {:card/type :wild})
 
 (defn- apply-events [events]
   (->> events
@@ -81,6 +82,20 @@
             expected (-> expected
                          (assoc-in [:game/players :player1 :player/hand] [red-2 red-3])
                          (assoc :game/discard-pile [red-1 blue-1]))]
+        (is (= expected (apply-events events)))))
+
+    (testing "wild card represents the color the player says it does"
+      (let [events [(-> game-was-started
+                        (assoc-in [:game/players :player1 :player/hand] [red-1 wild])
+                        (assoc :game/discard-pile [blue-1]))
+                    {:event/type :game.event/card-was-played
+                     :event/player :player1
+                     :card/type :wild
+                     :card/color :yellow}]
+            expected (-> expected
+                         (assoc-in [:game/players :player1 :player/hand] [red-1])
+                         (assoc :game/discard-pile [(assoc wild :card/color :yellow) ; TODO: separate the current color from the discard pile
+                                                    blue-1]))]
         (is (= expected (apply-events events)))))))
 
 (deftest player-turn-has-ended-test
@@ -149,7 +164,7 @@
 
 (deftest play-card-test
   (let [game-was-started {:event/type :game.event/game-was-started
-                          :game/players {:player1 {:player/hand [blue-1]}
+                          :game/players {:player1 {:player/hand [blue-1 wild]}
                                          :player2 {:player/hand [blue-2]}}
                           :game/discard-pile [red-2]
                           :game/draw-pile []
@@ -208,7 +223,19 @@
                             :command/player :player1
                             :card/type 1
                             :card/color :blue}
-                           [(assoc game-was-started :game/discard-pile [red-2])])))))
+                           [(assoc game-was-started :game/discard-pile [red-2])]))))
+
+    (testing "players can match any color with a wild card"
+      (is (= [{:event/type :game.event/card-was-played
+               :event/player :player1
+               :card/type :wild
+               :card/color :yellow}
+              player-turn-has-ended]
+             (handle-command {:command/type :game.command/play-card
+                              :command/player :player1
+                              :card/type :wild
+                              :card/color :yellow}
+                             [(assoc game-was-started :game/discard-pile [blue-2])])))))
 
   ;; TODO
   (testing "if there are no matches or player chooses not to play;"

@@ -19,6 +19,12 @@
 (defn wild-card? [card]
   (contains? #{:wild :wild-draw-four} (:card/type card)))
 
+;; TODO: avoid the need for this function; don't reuse :card/color for wild cards?
+(defn- normalize-wild-card [card]
+  (if (wild-card? card)
+    (dissoc card :card/color)
+    card))
+
 (defn remove-card [deck card]
   (cond
     (empty? deck) (throw (IllegalArgumentException. (str "card not found: " (pr-str card))))
@@ -61,8 +67,7 @@
         card (select-keys event [:card/type :card/color])]
     (-> game
         (update :game/discard-pile #(cons card %))
-        ;; TODO: wild cards have no color; must normalize before the card can be removed from hand
-        (update-in [:game/players player :player/hand] remove-card card))))
+        (update-in [:game/players player :player/hand] remove-card (normalize-wild-card card)))))
 
 (defmethod projection :game.event/player-turn-has-ended
   [game event]
@@ -101,13 +106,14 @@
                  player)
       (throw (IllegalArgumentException. (str "not current player; expected " (pr-str (:game/current-player game))
                                              ", but was " (pr-str player)))))
-    (when-not (contains? (set hand) card)
+    (when-not (contains? (set hand) (normalize-wild-card card))
       (throw (IllegalArgumentException. (str "card not in hand; tried to play " (pr-str card)
                                              ", but hand was " (pr-str hand)))))
     (when-not (or (= (:card/type top-card)
                      (:card/type card))
                   (= (:card/color top-card)
-                     (:card/color card)))
+                     (:card/color card))
+                  (= :wild (:card/type card)))
       (throw (IllegalArgumentException. (str "card " (pr-str card)
                                              " does not match the card " (pr-str top-card)
                                              " in discard pile"))))
