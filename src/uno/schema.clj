@@ -33,8 +33,7 @@
   {:event/type (s/eq :game.event/card-was-played)
    :event/player PlayerId
    :event/card Card
-   ;; TODO: optional
-   :card/effective-color CardColor})
+   (s/optional-key :card/effective-color) CardColor})
 
 (s/defschema CardWasNotPlayed
   {:event/type (s/eq :game.event/card-was-not-played)
@@ -79,8 +78,7 @@
   {:command/type (s/eq :game.command/play-card)
    :command/player PlayerId
    :command/card Card
-   ;; TODO: optional
-   :card/effective-color CardColor})
+   (s/optional-key :card/effective-color) CardColor})
 
 (s/defschema DoNotPlayCard
   {:command/type (s/eq :game.command/do-not-play-card)

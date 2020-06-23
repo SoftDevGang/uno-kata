@@ -47,6 +47,7 @@
                                       ", but was " (pr-str player)))))))
 
 (defn- card-matches? [card previous-card]
+  ;; FIXME: must take the game's effective color into account
   (or (= (:card/type previous-card)
          (:card/type card))
       (= (:card/color previous-card)
@@ -73,10 +74,12 @@
   [game event]
   (let [player (:event/player event)
         card (:event/card event)
-        color (:card/effective-color event)]
+        color (or (:card/color card)
+                  (:card/effective-color event))]
     (-> game
         (update-in [:game/players player :player/hand] remove-card card)
-        (update :game/discard-pile #(cons (assoc card :card/color color) %))))) ; TODO next: separate the current color from the discard pile
+        (update :game/discard-pile #(cons card %))
+        (assoc :card/effective-color color))))
 
 (defmethod projection :game.event/card-was-not-played
   [game _event]
@@ -125,7 +128,7 @@
   (let [player (:command/player command)
         hand (get-in game [:game/players player :player/hand])
         card (:command/card command)
-        color (:card/effective-color command)
+        effective-color (:card/effective-color command)
         top-card (first (:game/discard-pile game))
         last-drawn-card (:game/last-drawn-card game)]
     (check-is-current-player player game)
@@ -140,10 +143,15 @@
                (not= last-drawn-card card))
       (throw (GameRulesViolated. (str "can only play the card that was just drawn; tried to play " (pr-str card)
                                       ", but just drew " (pr-str last-drawn-card)))))
-    [{:event/type :game.event/card-was-played
-      :event/player player
-      :event/card card
-      :card/effective-color color}
+    (if (wild-card? card)
+      (when (nil? effective-color)
+        (throw (GameRulesViolated. "must state that which color the wild card represents")))
+      (when (some? effective-color)
+        (throw (GameRulesViolated. "only wild cards can represent some other color"))))
+    [(cond-> {:event/type :game.event/card-was-played
+              :event/player player
+              :event/card card}
+       (wild-card? card) (assoc :card/effective-color effective-color))
      {:event/type :game.event/player-turn-has-ended
       :event/player player
       :game/next-players (concat (:game/next-players game) [player])}]))
