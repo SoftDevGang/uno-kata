@@ -145,7 +145,8 @@
       (throw (GameRulesViolated. (str "can only play the card that was just drawn; tried to play " (pr-str card)
                                       ", but just drew " (pr-str last-drawn-card)))))
     [(merge {:event/type :game.event/card-was-played
-             :event/player player}
+             :event/player player
+             :event/card (normalize-wild-card card)}
             card)
      {:event/type :game.event/player-turn-has-ended
       :event/player player
@@ -163,7 +164,8 @@
         [{:event/type :game.event/card-was-not-played
           :event/player player}
          (merge {:event/type :game.event/card-was-drawn
-                 :event/player player}
+                 :event/player player
+                 :event/card card}
                 card)])
 
       ;; cannot pass a second time if the drawn card can be played

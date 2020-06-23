@@ -32,6 +32,7 @@
 (s/defschema CardWasPlayed
   {:event/type (s/eq :game.event/card-was-played)
    :event/player PlayerId
+   :event/card Card
    :card/type CardType
    :card/color CardColor})
 
@@ -42,6 +43,7 @@
 (s/defschema CardWasDrawn
   {:event/type (s/eq :game.event/card-was-drawn)
    :event/player PlayerId
+   :event/card Card
    :card/type CardType
    :card/color CardColor})
 
@@ -78,6 +80,7 @@
 (s/defschema PlayCard
   {:command/type (s/eq :game.command/play-card)
    :command/player PlayerId
+   :command/card Card
    :card/type CardType
    :card/color CardColor})
 

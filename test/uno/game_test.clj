@@ -78,6 +78,7 @@
                         (assoc :game/discard-pile [blue-1]))
                     {:event/type :game.event/card-was-played
                      :event/player :player1
+                     :event/card red-1
                      :card/type 1
                      :card/color :red}]
             expected (-> expected
@@ -91,6 +92,7 @@
                         (assoc :game/discard-pile [blue-1]))
                     {:event/type :game.event/card-was-played
                      :event/player :player1
+                     :event/card wild
                      :card/type :wild
                      :card/color :yellow}]
             expected (-> expected
@@ -125,6 +127,7 @@
                         (assoc :game/draw-pile [blue-1 blue-2 blue-3]))
                     {:event/type :game.event/card-was-drawn
                      :event/player :player1
+                     :event/card blue-1
                      :card/type 1
                      :card/color :blue}]
             expected (-> expected
@@ -214,6 +217,7 @@
            GameRulesViolated #"^not current player; expected :player1, but was :player2$"
            (handle-command {:command/type :game.command/play-card
                             :command/player :player2
+                            :command/card blue-2
                             :card/type 2
                             :card/color :blue}
                            [game-was-started]))))
@@ -223,6 +227,7 @@
            GameRulesViolated #"^card not in hand; tried to play .*:card/type 2.*, but hand was .*:card/type 1.*$"
            (handle-command {:command/type :game.command/play-card
                             :command/player :player1
+                            :command/card blue-2
                             :card/type 2
                             :card/color :blue}
                            [game-was-started]))))
@@ -230,11 +235,13 @@
     (testing "players can match the card in discard pile by number"
       (is (= [{:event/type :game.event/card-was-played
                :event/player :player1
+               :event/card blue-1
                :card/type 1
                :card/color :blue}
               player-turn-has-ended]
              (handle-command {:command/type :game.command/play-card
                               :command/player :player1
+                              :command/card blue-1
                               :card/type 1
                               :card/color :blue}
                              [(assoc game-was-started :game/discard-pile [red-1])]))))
@@ -242,11 +249,13 @@
     (testing "players can match the card in discard pile by color"
       (is (= [{:event/type :game.event/card-was-played
                :event/player :player1
+               :event/card blue-1
                :card/type 1
                :card/color :blue}
               player-turn-has-ended]
              (handle-command {:command/type :game.command/play-card
                               :command/player :player1
+                              :command/card blue-1
                               :card/type 1
                               :card/color :blue}
                              [(assoc game-was-started :game/discard-pile [blue-2])]))))
@@ -256,6 +265,7 @@
            GameRulesViolated #"^card \{.*blue.*} does not match the card \{.*red.*} in discard pile$"
            (handle-command {:command/type :game.command/play-card
                             :command/player :player1
+                            :command/card blue-1
                             :card/type 1
                             :card/color :blue}
                            [(assoc game-was-started :game/discard-pile [red-2])]))))
@@ -263,11 +273,13 @@
     (testing "players can match any color with a wild card"
       (is (= [{:event/type :game.event/card-was-played
                :event/player :player1
+               :event/card wild
                :card/type :wild
                :card/color :yellow}
               player-turn-has-ended]
              (handle-command {:command/type :game.command/play-card
                               :command/player :player1
+                              :command/card wild
                               :card/type :wild
                               :card/color :yellow}
                              [(assoc game-was-started :game/discard-pile [blue-2])]))))))
@@ -296,6 +308,7 @@
                :event/player :player1}
               {:event/type :game.event/card-was-drawn
                :event/player :player1
+               :event/card blue-2
                :card/type 2
                :card/color :blue}]
              (handle-command {:command/type :game.command/do-not-play-card
@@ -308,17 +321,20 @@
                      :event/player :player1}
                     {:event/type :game.event/card-was-drawn
                      :event/player :player1
+                     :event/card blue-2
                      :card/type 2
                      :card/color :blue}]]
 
         (testing "player can play it immediately"
           (is (= [{:event/type :game.event/card-was-played
                    :event/player :player1
+                   :event/card blue-2
                    :card/type 2
                    :card/color :blue}
                   player-turn-has-ended]
                  (handle-command {:command/type :game.command/play-card
                                   :command/player :player1
+                                  :command/card blue-2
                                   :card/type 2
                                   :card/color :blue}
                                  events))))
@@ -328,6 +344,7 @@
                GameRulesViolated #"^can only play the card that was just drawn; tried to play .*:card/type 3.*, but just drew .*:card/type 2.*$"
                (handle-command {:command/type :game.command/play-card
                                 :command/player :player1
+                                :command/card red-3
                                 :card/type 3
                                 :card/color :red}
                                events))))
@@ -345,6 +362,7 @@
                      :event/player :player1}
                     {:event/type :game.event/card-was-drawn
                      :event/player :player1
+                     :event/card blue-3
                      :card/type 3
                      :card/color :blue}]]
         (is (= [{:event/type :game.event/card-was-not-played
