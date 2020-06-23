@@ -20,12 +20,6 @@
 (defn wild-card? [card]
   (contains? #{:wild :wild-draw-four} (:card/type card)))
 
-;; TODO: avoid the need for this function; don't reuse :card/color for wild cards?
-(defn- normalize-wild-card [card]
-  (if (wild-card? card)
-    (dissoc card :card/color)
-    card))
-
 (defn remove-card [deck card]
   (cond
     (empty? deck) (throw (IllegalArgumentException. (str "card not found: " (pr-str card))))
@@ -135,7 +129,7 @@
         top-card (first (:game/discard-pile game))
         last-drawn-card (:game/last-drawn-card game)]
     (check-is-current-player player game)
-    (when-not (contains? (set hand) (normalize-wild-card card))
+    (when-not (contains? (set hand) card)
       (throw (GameRulesViolated. (str "card not in hand; tried to play " (pr-str card)
                                       ", but hand was " (pr-str hand)))))
     (when-not (card-matches? card top-card)
@@ -148,7 +142,7 @@
                                       ", but just drew " (pr-str last-drawn-card)))))
     [{:event/type :game.event/card-was-played
       :event/player player
-      :event/card (normalize-wild-card card)
+      :event/card card
       :card/effective-color color}
      {:event/type :game.event/player-turn-has-ended
       :event/player player
