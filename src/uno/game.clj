@@ -47,16 +47,20 @@
                                       ", but was " (pr-str player)))))))
 
 (defn- card-matches? [card previous-card]
-  ;; FIXME: must take the game's effective color into account
   (or (= (:card/type previous-card)
          (:card/type card))
       (= (:card/color previous-card)
          (:card/color card))
       (= :wild (:card/type card))))
 
+(defn- effective-top-card [game]
+  (let [top-card (first (:game/discard-pile game))
+        effective-color (:card/effective-color game)]
+    (cond-> top-card
+      (some? effective-color) (assoc :card/color effective-color))))
+
 (defn- card-can-be-played? [card game]
-  (let [top-card (first (:game/discard-pile game))]
-    (card-matches? card top-card)))
+  (card-matches? card (effective-top-card game)))
 
 
 ;;;; Read model
@@ -67,6 +71,7 @@
 (defmethod projection :game.event/game-was-started
   [game event]
   (assert (nil? game) {:game game})
+  ;; XXX: does not initialize :card/effective-color, consider using the same code as in card-was-played to avoid divergence (after splitting game-was-started)
   (select-keys event [:game/players :game/discard-pile :game/draw-pile
                       :game/current-player :game/next-players]))
 
@@ -129,7 +134,7 @@
         hand (get-in game [:game/players player :player/hand])
         card (:command/card command)
         effective-color (:card/effective-color command)
-        top-card (first (:game/discard-pile game))
+        top-card (effective-top-card game)
         last-drawn-card (:game/last-drawn-card game)]
     (check-is-current-player player game)
     (when-not (contains? (set hand) card)

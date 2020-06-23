@@ -204,9 +204,12 @@
                           :game/draw-pile []
                           :game/current-player :player1
                           :game/next-players [:player2]}
-        player-turn-has-ended {:event/type :game.event/player-turn-has-ended
-                               :event/player :player1
-                               :game/next-players [:player2 :player1]}]
+        player1-turn-has-ended {:event/type :game.event/player-turn-has-ended
+                                :event/player :player1
+                                :game/next-players [:player2 :player1]}
+        player2-turn-has-ended {:event/type :game.event/player-turn-has-ended
+                                :event/player :player2
+                                :game/next-players [:player1 :player2]}]
 
     (testing "players cannot play out of turn"
       (is (thrown-with-msg?
@@ -228,7 +231,7 @@
       (is (= [{:event/type :game.event/card-was-played
                :event/player :player1
                :event/card blue-1}
-              player-turn-has-ended]
+              player1-turn-has-ended]
              (handle-command {:command/type :game.command/play-card
                               :command/player :player1
                               :command/card blue-1}
@@ -238,7 +241,7 @@
       (is (= [{:event/type :game.event/card-was-played
                :event/player :player1
                :event/card blue-1}
-              player-turn-has-ended]
+              player1-turn-has-ended]
              (handle-command {:command/type :game.command/play-card
                               :command/player :player1
                               :command/card blue-1}
@@ -257,7 +260,7 @@
                :event/player :player1
                :event/card wild
                :card/effective-color :yellow}
-              player-turn-has-ended]
+              player1-turn-has-ended]
              (handle-command {:command/type :game.command/play-card
                               :command/player :player1
                               :command/card wild
@@ -279,7 +282,34 @@
                             :command/player :player1
                             :command/card blue-1
                             :card/effective-color :yellow}
-                           [(assoc game-was-started :game/discard-pile [red-1])]))))))
+                           [(assoc game-was-started :game/discard-pile [red-1])]))))
+
+    (testing "the next player must match the stated color for the wild card"
+      (let [events [(assoc game-was-started
+                           :game/players {:player1 {:player/hand [blue-1 wild]}
+                                          :player2 {:player/hand [blue-2 yellow-2]}}
+                           :game/discard-pile [red-2])
+                    {:event/type :game.event/card-was-played
+                     :event/player :player1
+                     :event/card wild
+                     :card/effective-color :yellow}
+                    player1-turn-has-ended]]
+        (is (= [{:event/type :game.event/card-was-played
+                 :event/player :player2
+                 :event/card yellow-2}
+                player2-turn-has-ended]
+               (handle-command {:command/type :game.command/play-card
+                                :command/player :player2
+                                :command/card yellow-2}
+                               events))
+            "matching color")
+        (is (thrown-with-msg?
+             GameRulesViolated #"^card .*:card/color :blue.* does not match the card .*:card/color :yellow.* in discard pile$"
+             (handle-command {:command/type :game.command/play-card
+                              :command/player :player2
+                              :command/card blue-2}
+                             events))
+            "different color")))))
 
 (deftest do-not-play-card-test
   (let [game-was-started {:event/type :game.event/game-was-started
