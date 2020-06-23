@@ -45,15 +45,28 @@
   (let [[game discard-pile] (draw-cards game 1)]
     (assoc game :game/discard-pile discard-pile)))
 
+(defn- check-is-current-player [player game]
+  (let [current-player (:game/current-player game)]
+    (when-not (= current-player player)
+      (throw (IllegalArgumentException. (str "not current player; expected " (pr-str current-player)
+                                             ", but was " (pr-str player)))))))
+
+(defn- card-matches? [card previous-card]
+  (or (= (:card/type previous-card)
+         (:card/type card))
+      (= (:card/color previous-card)
+         (:card/color card))
+      (= :wild (:card/type card))))
+
+(defn- card-can-be-played? [card game]
+  (let [top-card (first (:game/discard-pile game))]
+    (card-matches? card top-card)))
+
 
 ;;;; Read model
 
 (defmulti projection (fn [_game event]
                        (:event/type event)))
-
-(defmethod projection :default
-  [game _event]
-  game)
 
 (defmethod projection :game.event/game-was-started
   [game event]
@@ -64,14 +77,29 @@
 (defmethod projection :game.event/card-was-played
   [game event]
   (let [player (:event/player event)
-        card (select-keys event [:card/type :card/color])]
+        card (select-keys event [:card/type :card/color])] ; TODO: introduce :event/card
     (-> game
-        (update :game/discard-pile #(cons card %))
-        (update-in [:game/players player :player/hand] remove-card (normalize-wild-card card)))))
+        (update-in [:game/players player :player/hand] remove-card (normalize-wild-card card))
+        (update :game/discard-pile #(cons card %)))))
+
+(defmethod projection :game.event/card-was-not-played
+  [game _event]
+  (assoc game :game/draw-penalty-card? true))
+
+(defmethod projection :game.event/card-was-drawn
+  [game event]
+  (let [player (:event/player event)
+        card (select-keys event [:card/type :card/color])] ; TODO: introduce :event/card
+    (-> game
+        (update :game/draw-pile remove-card card)
+        (update-in [:game/players player :player/hand] #(cons card %))
+        (assoc :game/last-drawn-card card))))
 
 (defmethod projection :game.event/player-turn-has-ended
   [game event]
   (let [players (:game/next-players event)]
+    ;; TODO: clear turn specific state (e.g. :game/draw-penalty-card? :game/last-drawn-card)
+    ;; TODO: store turn specific state under one key so that it can be cleared easily
     (-> game
         (assoc :game/current-player (first players))
         (assoc :game/next-players (rest players)))))
@@ -87,6 +115,7 @@
   (assert (nil? game))
   (let [players (:game/players command)]
     (when-not (<= 2 (count players) 10)
+      ;; TODO: custom exception type, GameRulesViolated
       (throw (IllegalArgumentException. (str "expected 2-10 players, but was " (count players)))))
     (let [game {:game/draw-pile (shuffle all-cards)}
           game (reduce #(deal-cards %1 %2 starting-hand-size) game players)
@@ -100,30 +129,54 @@
   [command game _injections]
   (let [player (:command/player command)
         hand (get-in game [:game/players player :player/hand])
-        card (select-keys command [:card/type :card/color])
-        top-card (first (:game/discard-pile game))]
-    (when-not (= (:game/current-player game)
-                 player)
-      (throw (IllegalArgumentException. (str "not current player; expected " (pr-str (:game/current-player game))
-                                             ", but was " (pr-str player)))))
+        card (select-keys command [:card/type :card/color]) ; TODO: introduce :event/card
+        top-card (first (:game/discard-pile game))
+        last-drawn-card (:game/last-drawn-card game)]
+    (check-is-current-player player game)
     (when-not (contains? (set hand) (normalize-wild-card card))
       (throw (IllegalArgumentException. (str "card not in hand; tried to play " (pr-str card)
                                              ", but hand was " (pr-str hand)))))
-    (when-not (or (= (:card/type top-card)
-                     (:card/type card))
-                  (= (:card/color top-card)
-                     (:card/color card))
-                  (= :wild (:card/type card)))
+    (when-not (card-matches? card top-card)
       (throw (IllegalArgumentException. (str "card " (pr-str card)
                                              " does not match the card " (pr-str top-card)
                                              " in discard pile"))))
-    [{:event/type :game.event/card-was-played
-      :event/player player
-      :card/type (:card/type card)
-      :card/color (:card/color card)}
+    (when (and (:game/draw-penalty-card? game)
+               (not= last-drawn-card card))
+      (throw (IllegalArgumentException. (str "can only play the card that was just drawn; tried to play " (pr-str card)
+                                             ", but just drew " (pr-str last-drawn-card)))))
+    [(merge {:event/type :game.event/card-was-played
+             :event/player player}
+            card)
      {:event/type :game.event/player-turn-has-ended
       :event/player player
       :game/next-players (concat (:game/next-players game) [player])}]))
+
+(defmethod command-handler :game.command/do-not-play-card
+  [command game _injections]
+  (let [player (:command/player command)]
+    (check-is-current-player player game)
+    (cond
+      ;; passing the first time
+      (not (:game/draw-penalty-card? game))
+      ;; TODO: reshuffle if the draw pile is empty
+      (let [card (first (:game/draw-pile game))]
+        [{:event/type :game.event/card-was-not-played
+          :event/player player}
+         (merge {:event/type :game.event/card-was-drawn
+                 :event/player player}
+                card)])
+
+      ;; cannot pass a second time if the drawn card can be played
+      (card-can-be-played? (:game/last-drawn-card game) game)
+      (throw (IllegalArgumentException. "the card that was just drawn can be played, so it must be played"))
+
+      ;; passing a second time
+      :else
+      [{:event/type :game.event/card-was-not-played
+        :event/player player}
+       {:event/type :game.event/player-turn-has-ended
+        :event/player player
+        :game/next-players (concat (:game/next-players game) [player])}])))
 
 (defn handle-command [command game]
   (command-handler command game {}))

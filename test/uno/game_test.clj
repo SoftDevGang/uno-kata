@@ -98,6 +98,40 @@
                                                     blue-1]))]
         (is (= expected (apply-events events)))))))
 
+(deftest card-was-not-played-test
+  (let [[game-was-started :as events] (handle-command {:command/type :game.command/start-game
+                                                       :game/players [:player1 :player2 :player3]}
+                                                      nil)
+        expected (apply-events events)]
+
+    (testing "no matching card in hand or player decides to not play"
+      (let [events [game-was-started
+                    {:event/type :game.event/card-was-not-played
+                     :event/player :player1}]
+            expected (-> expected
+                         (assoc :game/draw-penalty-card? true))]
+        (is (= expected (apply-events events)))))))
+
+(deftest card-was-drawn-test
+  (let [[game-was-started :as events] (handle-command {:command/type :game.command/start-game
+                                                       :game/players [:player1 :player2 :player3]}
+                                                      nil)
+        expected (apply-events events)]
+
+    (testing "card is removed from the draw pile and added to the player's hand"
+      (let [events [(-> game-was-started
+                        (assoc-in [:game/players :player1 :player/hand] [red-1 red-2 red-3])
+                        (assoc :game/draw-pile [blue-1 blue-2 blue-3]))
+                    {:event/type :game.event/card-was-drawn
+                     :event/player :player1
+                     :card/type 1
+                     :card/color :blue}]
+            expected (-> expected
+                         (assoc-in [:game/players :player1 :player/hand] [blue-1 red-1 red-2 red-3])
+                         (assoc :game/draw-pile [blue-2 blue-3])
+                         (assoc :game/last-drawn-card blue-1))]
+        (is (= expected (apply-events events)))))))
+
 (deftest player-turn-has-ended-test
   (let [events (handle-command {:command/type :game.command/start-game
                                 :game/players [:player1 :player2 :player3]}
@@ -235,9 +269,86 @@
                               :command/player :player1
                               :card/type :wild
                               :card/color :yellow}
-                             [(assoc game-was-started :game/discard-pile [blue-2])])))))
+                             [(assoc game-was-started :game/discard-pile [blue-2])]))))))
 
-  ;; TODO
-  (testing "if there are no matches or player chooses not to play;"
-    (testing "player must draw a card from the discard pile")
-    (testing "player may play the card they just drew if it matches")))
+(deftest do-not-play-card-test
+  (let [game-was-started {:event/type :game.event/game-was-started
+                          :game/players {:player1 {:player/hand [blue-1 red-3]}
+                                         :player2 {:player/hand [blue-2]}}
+                          :game/discard-pile [red-2]
+                          :game/draw-pile []
+                          :game/current-player :player1
+                          :game/next-players [:player2]}
+        player-turn-has-ended {:event/type :game.event/player-turn-has-ended
+                               :event/player :player1
+                               :game/next-players [:player2 :player1]}]
+
+    (testing "players cannot not play out of turn"
+      (is (thrown-with-msg?
+           IllegalArgumentException #"^not current player; expected :player1, but was :player2$"
+           (handle-command {:command/type :game.command/do-not-play-card
+                            :command/player :player2}
+                           [game-was-started]))))
+
+    (testing "if there are no matches or player chooses not to play, player must draw a card from the draw pile"
+      (is (= [{:event/type :game.event/card-was-not-played
+               :event/player :player1}
+              {:event/type :game.event/card-was-drawn
+               :event/player :player1
+               :card/type 2
+               :card/color :blue}]
+             (handle-command {:command/type :game.command/do-not-play-card
+                              :command/player :player1}
+                             [(assoc game-was-started :game/draw-pile [blue-2])]))))
+
+    (testing "if the drawn card matches,"
+      (let [events [(assoc game-was-started :game/draw-pile [blue-2])
+                    {:event/type :game.event/card-was-not-played
+                     :event/player :player1}
+                    {:event/type :game.event/card-was-drawn
+                     :event/player :player1
+                     :card/type 2
+                     :card/color :blue}]]
+
+        (testing "player can play it immediately"
+          (is (= [{:event/type :game.event/card-was-played
+                   :event/player :player1
+                   :card/type 2
+                   :card/color :blue}
+                  player-turn-has-ended]
+                 (handle-command {:command/type :game.command/play-card
+                                  :command/player :player1
+                                  :card/type 2
+                                  :card/color :blue}
+                                 events))))
+
+        (testing "player cannot play other cards"
+          (is (thrown-with-msg?
+               IllegalArgumentException #"^can only play the card that was just drawn; tried to play .*:card/type 3.*, but just drew .*:card/type 2.*$"
+               (handle-command {:command/type :game.command/play-card
+                                :command/player :player1
+                                :card/type 3
+                                :card/color :red}
+                               events))))
+
+        (testing "player cannot avoid playing it"
+          (is (thrown-with-msg?
+               IllegalArgumentException #"^the card that was just drawn can be played, so it must be played$"
+               (handle-command {:command/type :game.command/do-not-play-card
+                                :command/player :player1}
+                               events))))))
+
+    (testing "if the drawn card does not match, player keeps it and turn goes to the next player"
+      (let [events [(assoc game-was-started :game/draw-pile [blue-3])
+                    {:event/type :game.event/card-was-not-played
+                     :event/player :player1}
+                    {:event/type :game.event/card-was-drawn
+                     :event/player :player1
+                     :card/type 3
+                     :card/color :blue}]]
+        (is (= [{:event/type :game.event/card-was-not-played
+                 :event/player :player1}
+                player-turn-has-ended]
+               (handle-command {:command/type :game.command/do-not-play-card
+                                :command/player :player1}
+                               events)))))))
