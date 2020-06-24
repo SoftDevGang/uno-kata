@@ -30,3 +30,16 @@
 
 ;; Rules for the Uno game
 ;; https://www.unorules.com/
+
+(defn start-game [players]
+  (apply-events (handle-command {:command/type :game.command/start-game
+                                 :game/players players}
+                                nil)))
+
+(deftest foo-test
+  (testing "when the game starts, all players have 7 cards"
+    (let [game (start-game [:player1 :player2 :player3])]
+      (is (= 7
+             (count (get-in game [:game/players :player1 :player/hand]))
+             (count (get-in game [:game/players :player2 :player/hand]))
+             (count (get-in game [:game/players :player3 :player/hand])))))))
