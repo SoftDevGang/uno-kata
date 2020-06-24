@@ -36,6 +36,13 @@
                                  :game/players players}
                                 nil)))
 
+(defn all-numbers-of-players []
+  (for [number-of-players (range 2 (inc 10))]
+    (take number-of-players [:player1 :player2 :player3 :player4 :player5 :player6 :player7 :player8 :player9 :player10])))
+
+(defn number-of-cards-in-hand [game player]
+  (count (get-in game [:game/players player :player/hand])))
+
 (deftest foo-test
   (testing "when the game starts, all players have 7 cards"
     (let [game (start-game [:player1 :player2 :player3])]
@@ -45,8 +52,9 @@
              (count (get-in game [:game/players :player3 :player/hand]))))))
 
   (testing "when a game of 2-10 players starts, all players have 7 cards"
-    (doseq [number-of-players (range 2 (inc 10))]
-      (let [players (take number-of-players [:player1 :player2 :player3 :player4 :player5 :player6 :player7 :player8 :player9 :player10])
-            game (start-game players)]
-        (doseq [player players]
-          (is (= 7 (count (get-in game [:game/players player :player/hand])))))))))
+    (doseq [players (all-numbers-of-players)]
+      (testing (format "- for %s players" (count players))
+        (let [game (start-game players)]
+          (doseq [player players]
+            (is (= 7 (number-of-cards-in-hand game player))
+                player)))))))
