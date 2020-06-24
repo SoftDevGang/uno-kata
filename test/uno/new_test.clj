@@ -42,4 +42,11 @@
       (is (= 7
              (count (get-in game [:game/players :player1 :player/hand]))
              (count (get-in game [:game/players :player2 :player/hand]))
-             (count (get-in game [:game/players :player3 :player/hand])))))))
+             (count (get-in game [:game/players :player3 :player/hand]))))))
+
+  (testing "when a game of 2-10 players starts, all players have 7 cards"
+    (doseq [number-of-players (range 2 (inc 10))]
+      (let [players (take number-of-players [:player1 :player2 :player3 :player4 :player5 :player6 :player7 :player8 :player9 :player10])
+            game (start-game players)]
+        (doseq [player players]
+          (is (= 7 (count (get-in game [:game/players player :player/hand])))))))))
