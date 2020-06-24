@@ -46,6 +46,9 @@
 (defn number-of-cards-in-hand [game player]
   (count (get-in game [:game/players player :player/hand])))
 
+(deftest other-stuff-test
+  (is (= 108 (count game/all-cards))))
+
 (deftest when-the-game-starts-test
   (testing "all players have 7 cards"
     (let [game (start-game [:player1 :player2 :player3])]
@@ -63,7 +66,6 @@
                 player))))))
 
   (testing "the rest of the cards are placed in draw pile face down"
-    (is (= 108 (count game/all-cards)))
     (let [game (start-game [:player1 :player2 :player3])]
       (is (= (- 108
                 ;; player hands
@@ -77,3 +79,8 @@
                                   (get-in game [:game/players :player2 :player/hand])
                                   (get-in game [:game/players :player3 :player/hand])
                                   (:game/discard-pile game))))))))
+
+#_(deftest first-players-turn-test
+    (testing "play matching color")
+    (is true))
+  
