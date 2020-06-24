@@ -70,4 +70,10 @@
                 7 7 7
                 ;; discard pile
                 1)
-             (count (:game/draw-pile game)))))))
+             (count (:game/draw-pile game))))
+      (is (= (frequencies game/all-cards)
+             (frequencies (concat (:game/draw-pile game)
+                                  (get-in game [:game/players :player1 :player/hand])
+                                  (get-in game [:game/players :player2 :player/hand])
+                                  (get-in game [:game/players :player3 :player/hand])
+                                  (:game/discard-pile game))))))))
