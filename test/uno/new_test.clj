@@ -36,8 +36,11 @@
                                  :game/players players}
                                 nil)))
 
+(def minimum-players 2)
+(def maximum-players 10)
+
 (defn all-numbers-of-players []
-  (for [number-of-players (range 2 (inc 10))]
+  (for [number-of-players (range minimum-players (inc maximum-players))]
     (take number-of-players [:player1 :player2 :player3 :player4 :player5 :player6 :player7 :player8 :player9 :player10])))
 
 (defn number-of-cards-in-hand [game player]
@@ -57,4 +60,14 @@
         (let [game (start-game players)]
           (doseq [player players]
             (is (= 7 (number-of-cards-in-hand game player))
-                player)))))))
+                player))))))
+
+  (testing "the rest of the cards are placed in draw pile face down"
+    (is (= 108 (count game/all-cards)))
+    (let [game (start-game [:player1 :player2 :player3])]
+      (is (= (- 108
+                ;; player hands
+                7 7 7
+                ;; discard pile
+                1)
+             (count (:game/draw-pile game)))))))
